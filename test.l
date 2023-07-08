@@ -1,44 +1,56 @@
-// function test() {return 0;}
-// str::text = "hello"+", world\n";
-// str::text = null+"hello";
-// str::text = "hello";
-float[3]::a = [1.414, 2.236, 3.141];
-a[1] = 233;
-print(to_str(a[2-(-1)-3])+'\n');
- float::b = a[-1+2];
+float[5]::a = [1.414, 2.236, 3.141];
+a[-1+print("a\n")+2] = 233;
+float::b = 1;
+float::b = a[-1+2];
 str::string = to_str(b);
-// if (b <= 500) {
-    // print(string+'\n');
-    // }
-if (b <= 500) 
+
+if (b <= 20) 
     print(string+'\n'); 
+else if (b == 5) {
+    print("i ya da\n");
+    b  = b + 255;
+    print("a[1]: "+to_str(a[1])+", b:"+to_str(b)+'\n');
+} else {
+    print("ha?\n");
+}
+
+b = 1;
+while(b<10){
+    if (b == 6) {
+        b = b + 2;
+        continue;
+    }
+    print("b-value: "+to_str(b)+'\n');
+    b = b + 1;
+}
 
 
- 
-// 
-     
-// } else if () {
+function int[3]::abc(str::content, int::_awa)
+{
+    content = content + " wtf!!";
 
-// }
+    function str::__text(str::content){
+        return content + '(end)';
+    }
+    content = __text(content);
 
-// int::_i = 0;
-// _i = _i + 1;
-// float::_t = a[_i+2]; 
-// function int::a(){}
+    int[3]::a = [0, 0 ,0];
+    int::_tmp = 0;
+    while (_tmp < 3)
+    {
+        a[_tmp] = print(content+'\n')+_awa+_tmp;
+        _tmp = _tmp + 1;
+    }
 
-    // print(text+", world\n");
-    // print(a+3+5 == 15 && a == 6+21);
-    // float::char = print(text);
-    
-    // b(1);
-// float::b = 5+(-1);
-// str::b = ("hello");
+    return a;
+}
 
-    // a = a + 3;
-// print("value: "+to_str(b)+'\n');
-    // print(a);
-    
-    // float::a = 1;
-    // print(to_str(a+3 == print("hello\n")*2 || (("hello, world") && a+1 == a*1))+'\n');
-    
+float[3]::_res = abc("hello", 3);
+
+int::_tmp = 0;
+while (_tmp < 3)
+{
+    print(to_str(_res[_tmp])+'\n');
+    _tmp = _tmp + 1;
+}
 

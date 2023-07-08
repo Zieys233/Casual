@@ -1,6 +1,8 @@
 from sys import exit
 from unicodedata import category
 from sys import maxunicode
+from copy import deepcopy
+
 
 invalidSymbol = [c for _i in range(maxunicode+1) if category(c:=chr(_i)).startswith('P')]; invalidSymbol.remove('_')
 
@@ -33,29 +35,8 @@ def deleteBlankPart(code:str, remainingBlankCount:int):
 
     return _tmp
 
-def createVariable(variablePool:dict, currentScope:str, variableName:str, variableType:str, internal) -> list:
-    currentScopeArray = currentScope.split('.')
-    accessWidth = len(currentScopeArray)
-    _tmp = variablePool
-    for _l in range(accessWidth):
-        _tmp = _tmp[currentScopeArray[_l]]["variablePool"]
-
-    _tmp[variableName] = {"type": variableType, "internal": internal, "variablePool": {}}
-
-    return _tmp[variableName]
-
-def getValue(variablePool:dict, currentScope:str, variableName:str):
-    currentScopeArray = currentScope.split('.')
-    accessWidth = len(currentScopeArray)
-    for _i in range(accessWidth):
-        _tmp = variablePool
-        for _l in range(accessWidth-_i):
-            _tmp = _tmp[currentScopeArray[_l]]["variablePool"]
-        if variableName in _tmp: return _tmp[variableName]
-    
-    return None
-
 def tupleParsing(parameterCode:str) -> list:
+    # Handling an array of function parameters
     if parameterCode == '': return []
 
     elementArray, element, stringMode, parenthesisLevel = [], '', False, 0
@@ -81,6 +62,51 @@ def stringCodeRestoration(code:str, stringCodeTable:dict):
         code = code.replace(f"${_i}", stringCodeTable[_i])
     return code
 
+def getStringCode(code:str) -> tuple: 
+    index, _stringMode, mainCode, _stringCode, stringCodeTable, _count = 0, False,  '', '', {}, 0
+    while index < len(code):
+        if code[index] == '"' or code[index] == '\'': 
+            if not _stringMode: _stringMode = code[index]; _count += 1
+            elif _stringMode == code[index]: 
+                _stringMode = False
+                while f"${_count}" in code: _count += 1
+                stringCodeTable[_count] = _stringCode+code[index]; _stringCode = ''; mainCode += f"${_count}"
+                index += 1; continue
+        
+        if _stringMode: _stringCode += code[index]
+        else: mainCode += code[index]
+        index += 1
+    if _stringMode: print("SyntaxError: incomplete input of string"); exit(1)
+
+    return mainCode, stringCodeTable
+
+def createVariable(variablePool:dict, currentScope:str, variableName:str, variableType:str, internal) -> list:
+    currentScopeArray = currentScope.split('.')
+    accessWidth = len(currentScopeArray)
+    _tmp = variablePool
+    for _l in range(accessWidth):
+        _tmp = _tmp[currentScopeArray[_l]]["variablePool"]
+
+    _tmp[variableName] = {"type": variableType, "internal": internal, "variablePool": {}}
+
+    return _tmp[variableName]
+
+def getValue(variablePool:dict, currentScope:str, variableName:str):
+    currentScopeArray = currentScope.split('.')
+    accessWidth = len(currentScopeArray)
+    variableScopeArray = []
+    for _i in range(accessWidth):
+        _tmp = variablePool
+        for _l in range(accessWidth-_i):
+            if currentScopeArray[_l] not in _tmp: continue
+            _tmp = _tmp[currentScopeArray[_l]]["variablePool"]
+            variableScopeArray.append(currentScopeArray[_l])
+        if variableName in _tmp: 
+            return _tmp[variableName], '.'.join(variableScopeArray)
+        variableScopeArray = []
+    
+    return None, currentScope
+
 def assignmentSentence(code:str, stringCodeTable:dict, variablePool:dict, currentScope:str):
     _value = singleCommandParsing(stringCodeRestoration(code[code.find('=')+1:len(code)], stringCodeTable), variablePool, currentScope)
     _element = code[0:code.find('=')]
@@ -89,14 +115,27 @@ def assignmentSentence(code:str, stringCodeTable:dict, variablePool:dict, curren
         typeName, variableName = _element.split("::")
     except ValueError: 
         if '[' in _element and _element[-1] == ']':
-            _variable = getValue(variablePool, currentScope, _element[0:_element.find('[')])
+            _variable = getValue(variablePool, currentScope, _element[0:_element.find('[')])[0]
+            _type = _variable['type']
+            try: _typeName, _capacity = _type[0:_type.find('[')], int(_type[_type.find('[')+1:-1])
+            except: print(f"SyntaxError: invalid array operation."); exit(1)
             if not _variable: print(f"NameError: name '{_element[0:_element.find('[')]}' is not defined"); exit(1)
             _index = singleCommandParsing(stringCodeRestoration(_element[_element.find('[')+1:-1], stringCodeTable), variablePool, currentScope)
-            try:
+            if not type(_index) == int: print("TypeError: the type of index value must be 'int'")
+
+            if _typeName != type(_value).__name__ and not (_typeName == "float" and type(_value).__name__ == "int") and \
+                type(_value).__name__ != "NoneType": print("TypeError: Cannot assign values to variables of different types.", _value, _element); exit(1)
+            
+            _length = len(_variable["variablePool"]["__value"])
+            if _capacity > _index >= _length-1:
+                for _i in range(_index-_length+1): _variable["variablePool"]["__value"].append(None)
                 _variable["variablePool"]["__value"][_index] = _value
                 return _value
-            except: print(f"SyntaxError: invalid array operation."); exit(1)
-        variableValue = getValue(variablePool, currentScope, stringCodeRestoration(_element, stringCodeTable))
+            elif _index < _length-1:
+                _variable["variablePool"]["__value"][_index] = _value
+                return _value
+            else: print(f"SyntaxError: invalid array operation."); exit(1)
+        variableValue = getValue(variablePool, currentScope, stringCodeRestoration(_element, stringCodeTable))[0]
         if not variableValue: print("SyntaxError: Type definition required"); exit(1)
         variableValue["variablePool"]["__value"] = _value
         return _value
@@ -107,9 +146,13 @@ def assignmentSentence(code:str, stringCodeTable:dict, variablePool:dict, curren
     for _i in invalidSymbol:
         if _i in variableName: print("SyntaxError: invalid syntax"); exit(1)
     if '[' in typeName and typeName[-1] == ']':
-        typeName, index = typeName[0:typeName.find('[')], singleCommandParsing(typeName[typeName.find('[')+1:-1], variablePool, currentScope)
-        if len(_value) > index: print("IndexError: The actual element quality cannot exceed the array index"); exit(1)
-        createVariable(variablePool, currentScope, variableName, typeName+"[]", None)["variablePool"]["__value"] = _value
+        typeName, index = typeName[0:typeName.find('[')], singleCommandParsing(stringCodeRestoration(typeName[typeName.find('[')+1:-1], stringCodeTable), variablePool, currentScope)
+        if not type(index) == int: print("TypeError: the type of index value must be 'int'")
+        if not type(_value).__name__ == "NoneType":
+            if type(_value[0]).__name__ != typeName and not (type(_value[0]).__name__ == "int" and typeName == "float"):
+                print("TypeError: Cannot assign values to variables of different types."); exit(1)
+            if len(_value) > index: print("IndexError: The actual element quality cannot exceed the array index"); exit(1)
+        createVariable(variablePool, currentScope, variableName, typeName+f"[{index}]", None)["variablePool"]["__value"] = _value
     elif typeName == type(_value).__name__ or type(_value).__name__=="NoneType" or \
         (typeName == "float" and type(_value).__name__ == "int"):
         createVariable(variablePool, currentScope, variableName, typeName, None)["variablePool"]["__value"] = _value
@@ -121,12 +164,11 @@ def assignmentSentence(code:str, stringCodeTable:dict, variablePool:dict, curren
 def functionCall(code:str, stringCodeTable:dict, variablePool:dict, currentScope:str):
     functionName = stringCodeRestoration(code[0:code.find('(')], stringCodeTable) # function name obtained from the code
 
-    functionInformation = getValue(variablePool, currentScope, functionName)
+    functionInformation, functionScope = getValue(variablePool, currentScope, functionName)
     if not functionInformation: print(f"NameError: name '{functionName}' is not defined"); exit(1)
     if not functionInformation["type"] == "function": 
         print(f"TypeError: '{functionInformation['type']}' object is not callable"); exit(1)
-    
-    from copy import deepcopy
+       
     originFunctionVariablePool = deepcopy(functionInformation["variablePool"])
 
     parameterCode = stringCodeRestoration(code[code.find('(')+1:-1], stringCodeTable)
@@ -141,24 +183,33 @@ def functionCall(code:str, stringCodeTable:dict, variablePool:dict, currentScope
         print(f"TypeError: {functionName}() missing {len(functionParameterArray)-len(_valueArray)} required argument"); exit(1)
     elif len(_valueArray) > len(functionParameterArray): 
         print(f"TypeError: Only {len(_valueArray)-len(functionParameterArray)} parameters are required for {functionName}() "); exit(3)
-    
     for _i in range(len(_valueArray)):
         _valueType = type(_valueArray[_i]).__name__
         _parameterType = functionInformation["variablePool"][functionParameterArray[_i]]["type"]
         if not (_valueType == _parameterType or _valueType == "NoneType" or (_valueType == "int" and _parameterType == "float")):
-            print("TypeError: The formal and actual parameter types must be consistent"); exit(1)
-
+            print("TypeError: The formal and actual parameter types must be consistent", f"`{_valueType}`", f"`{_parameterType}`"); exit(1)
+        functionInformation["variablePool"][functionParameterArray[_i]]["variablePool"]["__value"] = _valueArray[_i]
+    
     if functionInformation["internal"]:
         try:
-            _value = functionInformation["internal"](variablePool, currentScope+'.'+functionName, *_valueArray)
+            _value = functionInformation["internal"](variablePool, functionScope+f".{functionName}")
         except: print("RuntimeError: faulty internal function functionality"); exit(1)
     else:
-        _value = run(functionInformation["variablePool"]["__code"], variablePool, currentScope+'.'+functionName)
+        _value = run(functionInformation["variablePool"]["__code"], True, False, variablePool, functionScope+f".{functionName}")[0]
     functionInformation["variablePool"] = originFunctionVariablePool
 
-    if returnValueType  == type(_value).__name__ or type(_value).__name__=="NoneType" or \
+    if (returnValueType == type(_value).__name__ and '[' not in returnValueType) or type(_value).__name__ == "NoneType" or \
         (returnValueType == "float" and type(_value).__name__ == "int"): return _value
-    else: print("TypeError: The return value defined by the function does not match the actual return value"); exit(1)
+    else:
+        if '[' in returnValueType and ']' in returnValueType[-1]:
+            _typeName = returnValueType[0:returnValueType.find('[')]
+            if type(_value[0]).__name__ != _typeName and not (type(_value[0]).__name__ == "int" and _typeName == "float"):
+                print("TypeError: The return value defined by the function does not match the actual return value"); exit(1)
+            try: _length = int(returnValueType[returnValueType.find('[')+1:-1])
+            except: print(f"SyntaxError: invalid array operation."); exit(1)
+            if _length <= len(_value): return _value
+            else: print(f"SyntaxError: invalid array operation."); exit(1)
+        print("TypeError: The return value defined by the function does not match the actual return value"); exit(1)
 
 def operationSentence(code:str, stringCodeTable:dict, variablePool:dict, currentScope:str): 
     # Divide symbols into different groups
@@ -248,7 +299,7 @@ def operationSentence(code:str, stringCodeTable:dict, variablePool:dict, current
             except TypeError: 
                 print("TypeError: Different types of values cannot be operated on directly")
                 if type(_value).__name__ == "NoneType" or type(_anotherValue).__name__ == "NoneType":
-                    print(" └─ Warning: type `null` cannot be operated on with any type")
+                    print(" └─ Warning: type `null` cannot be operated on with any type", f"`{_value}`", f"`{_anotherValue}`")
                 exit(1)
     return _value
 
@@ -256,20 +307,7 @@ def singleCommandParsing(code:str, variablePool:dict, currentScope:str):
     code = deleteBlankPart(code, 0)
     symbolTable = ['=', '>', '<', '!', '(', '+', '-', '*', '/', '%', '|', '&']
     
-    index, _stringMode, mainCode, _stringCode, _count, stringCodeTable = 0, False, '', '', 0, {}
-    while index < len(code):
-        if code[index] == '"' or code[index] == '\'': 
-            if not _stringMode: _stringMode = code[index]; _count += 1
-            elif _stringMode == code[index]: 
-                _stringMode = False
-                while f"${_count}" in code: _count += 1
-                stringCodeTable[_count] = _stringCode+code[index]; _stringCode = ''; mainCode += f"${_count}"
-                index += 1; continue
-        
-        if _stringMode: _stringCode += code[index]
-        else: mainCode += code[index]
-        index += 1
-    if _stringMode: print("SyntaxError: incomplete input of string"); exit(1)
+    mainCode, stringCodeTable = getStringCode(code)
 
     # assignment
     if '=' in mainCode and mainCode[mainCode.find('=')+1] != '=' and mainCode[mainCode.find('=')-1] not in ['>', '<']: 
@@ -287,10 +325,12 @@ def singleCommandParsing(code:str, variablePool:dict, currentScope:str):
         for _i in symbolTable:
             if _i in mainCode[0:mainCode.find('[')]: break
         else:
-            _variable = getValue(variablePool, currentScope, mainCode[0:mainCode.find('[')])
+            _variable = getValue(variablePool, currentScope, mainCode[0:mainCode.find('[')])[0]
             if not _variable: print(f"NameError: name '{mainCode[0:mainCode.find('[')]}' is not defined"); exit(1)
             _index = singleCommandParsing(stringCodeRestoration(mainCode[mainCode.find('[')+1:-1], stringCodeTable), variablePool, currentScope)
+            if not type(_index) == int: print("TypeError: the type of index value must be 'int'")
             try:
+                _value = _variable["variablePool"]["__value"]
                 return _variable["variablePool"]["__value"][_index]
             except: print(f"SyntaxError: invalid array operation."); exit(1)
 
@@ -307,7 +347,7 @@ def singleCommandParsing(code:str, variablePool:dict, currentScope:str):
             return operationSentence(mainCode, stringCodeTable, variablePool, currentScope)
 
     # Obtain value normally, whether it is in variable pool
-    _value = getValue(variablePool, currentScope, stringCodeRestoration(mainCode, stringCodeTable))
+    _value = getValue(variablePool, currentScope, stringCodeRestoration(mainCode, stringCodeTable))[0]
     if _value != None: return _value['variablePool']["__value"]
     # whether it is a regular value, such as int, float etc.
     if mainCode == "null": return None
@@ -315,7 +355,7 @@ def singleCommandParsing(code:str, variablePool:dict, currentScope:str):
         # it is a string
         return code[1:-1].replace("\\t", '\t').replace("\\n", '\n').replace("\\r", '\r')
     elif mainCode[0] == '[' and mainCode[-1] == ']': 
-        # it is an array
+        # it is an array, and it will create an array
         _tmp, elementArray = '', []
         for _i in range(1, len(mainCode)-1): 
             if mainCode[_i] == ',': elementArray.append(_tmp); _tmp = ''; continue
@@ -333,7 +373,7 @@ def singleCommandParsing(code:str, variablePool:dict, currentScope:str):
     try:
         if float(code) == int(float(code)): return int(code)
         else: return float(code)
-    except ValueError: print(f"NameError: name '{code}' is not defined"); exit(1)
+    except ValueError: print(f"NameError: name '{code}' is not defined3"); exit(1)
 
 def keywordComparison(code:str, index:int, keyword:str) -> int:
     if code[index] == ' ': 
@@ -345,13 +385,16 @@ def keywordComparison(code:str, index:int, keyword:str) -> int:
     comparison = ''
     while True:
         if index == len(code): return None
-        if code[index] == ' ' or code[index] == '(': break
+        if code[index] == ' ' or code[index] == '(' or code[index] == ';': break
         comparison += code[index]; index += 1
-    
+
     if comparison == keyword: return index
     else: return None
 
 def obtainCodeBlock(code:str, index:int, symbol:tuple) -> tuple:
+    # Obtain code block, 
+    # for example, code blocks enclosed in parentheses or braces and single line commands
+
     # Delete the bloank
     while code[index] == ' ': index += 1
     # Obrain code block
@@ -388,20 +431,20 @@ def obtainCodeBlock(code:str, index:int, symbol:tuple) -> tuple:
                 if parenthesisLevel == 0: print("SyntaxError: Cannot match closing parenthesis '}'"); exit(1)
                 else: parenthesisLevel -= 1 
             if not endSymbol and code[index] == ';': codeBlock += code[index]; break
-            if endSymbol and code[index] == '}' and not parenthesisLevel: break
+            if endSymbol and code[index] == '}' and not parenthesisLevel: codeBlock += code[index]; break
         codeBlock += code[index]; index += 1
     else: print("SyntaxError: invalid syntax"); exit(1)
     index += 1
-    if endSymbol: codeBlock = codeBlock[1:len(codeBlock)]
+
+    if codeBlock[0] == '{' and codeBlock[-1] == '}':  codeBlock = codeBlock[1:-1]
 
     return codeBlock, index
 
-def run(code:str, variablePool:dict, currentScope:str):
-    keywordArray = [
-        "function", "while", "if", "else", "break", "contine", "return"
-    ]
+def run(code:str, inFunction:bool, inLoop:bool, variablePool:dict, currentScope:str):
+    keywordArray = ["if", "else", "while", "break", "continue", "function", "return"]
 
-    index = 0
+    index, result, elseJudgement, outOfLoop = 0, None, False, 0
+    
     while index < len(code):
         # Find keywords that match the requirements
         keyword = None
@@ -409,24 +452,21 @@ def run(code:str, variablePool:dict, currentScope:str):
         for _k in keywordArray:
             comparsionResult = keywordComparison(code, index, _k)
             if comparsionResult: keyword = _k; break
-        print("found:", keyword, comparsionResult)
 
         # No keywords match
         if keyword == None: 
             # Read a single element
             element, stringMode = '', False
-            while True:
-                if index == len(code): print("EOFError: incomplete input"); exit(1)
+            while index < len(code):
                 if code[index] == '"' or code[index] == '\'': 
                     if not stringMode: stringMode = code[index]
                     else: stringMode = False
                 if code[index] == ';' and not stringMode: break
                 element += code[index]
                 index += 1
+            else: print("SyntaxError: invalid syntax"); exit(1)
 
             _result = singleCommandParsing(element, variablePool, currentScope)
-            print(f"result: `{_result}`, type: {type(_result)}\n"+'='*25)
-            # print(variablePool)
             index += 1; continue
         
         index = comparsionResult
@@ -435,4 +475,96 @@ def run(code:str, variablePool:dict, currentScope:str):
             runningCode, index = obtainCodeBlock(code, index, ())
 
             _condition = singleCommandParsing(conditionCode, variablePool, currentScope)
-            if _condition: _result = run(deleteBlankPart(runningCode, 1), variablePool, currentScope)
+            if _condition: 
+                _result, _elseJudgement, _inLoop, _outOfLoop = run(deleteBlankPart(runningCode, 1), inFunction, inLoop, variablePool, currentScope)
+                if _outOfLoop: outOfLoop = _outOfLoop; break
+                if _result: result = _result; break
+            else: 
+                elseJudgement = True
+
+        elif keyword == "else":
+            runningCode, index = obtainCodeBlock(code, index, ())
+            if elseJudgement == True: 
+                _result, elseJudgement, _inLoop, _outOfLoop = run(deleteBlankPart(runningCode, 1), inFunction, inLoop, variablePool, currentScope)
+                if _outOfLoop: outOfLoop = _outOfLoop; break
+                if _result: result = _result; break
+
+        elif keyword == "while":
+            elseJudgement = False
+            conditionCode, index = obtainCodeBlock(code, index, ('(', ')'))
+            runningCode, index = obtainCodeBlock(code, index, ())
+            
+            _result = None
+            while singleCommandParsing(conditionCode, variablePool, currentScope):
+                _result, elseJudgement, _inLoop, _outOfLoop = run(deleteBlankPart(runningCode, 1), inFunction, True, variablePool, currentScope)
+                if _result or _outOfLoop == 1: break
+            if _result: result = _result; break
+
+        elif keyword == "break":
+            if not inLoop: print("SyntaxError: 'break' outside loop"); exit(1)
+            if code[index] == ' ': index += 1 # Delete the blank
+            if code[index] == ';': index += 1
+            else: print("SyntaxError: invalid syntax"); exit(1)
+            outOfLoop = 1; break
+        
+        elif keyword == "continue":
+            if not inLoop: print("SyntaxError: 'break' outside loop"); exit(1)
+            if code[index] == ' ': index += 1 # Delete the blank
+            if code[index] == ';': index += 1
+            else: print("SyntaxError: invalid syntax"); exit(1)
+            outOfLoop = 2; break
+        
+        elif keyword == "function":
+            elseJudgement = False
+            if code[index] == ' ': index += 1 # Delete the blank
+            _element = ''
+            while index < len(code):
+                if code[index] == '(': break
+                _element += code[index]
+                index += 1
+            else: print("SyntaxError: invalid syntax"); exit(1)
+
+            # Initialize function information
+            _element, _stringCodeTable = getStringCode(_element)
+            _name =  _element.split("::")[1]
+            _element += "=null"
+        
+            assignmentSentence(_element, _stringCodeTable, variablePool, currentScope)
+
+            _variablePool = getValue(variablePool, currentScope, _name)[0]
+            del _variablePool["variablePool"]["__value"]
+            _variablePool["variablePool"]["__returnValueType"] = _variablePool["type"]
+            _variablePool["type"] = "function"
+            _variablePool["variablePool"]["__parameterList"] = []
+
+            _parameterCode, index = obtainCodeBlock(code, index, ('(', ')'))
+            _parameterCodeTable = tupleParsing(_parameterCode)
+
+            runningCode, index = obtainCodeBlock(code, index, ())
+            _variablePool["variablePool"]["__code"] = runningCode
+
+            for _parameterCode in _parameterCodeTable:
+                _pCode, _pTable = getStringCode(_parameterCode)
+                _pName = _pCode.split("::")[1]
+                if not '=' in _pCode: _pCode += "=null"
+                _variablePool["variablePool"]["__parameterList"].append(_pName)
+                assignmentSentence(deleteBlankPart(_pCode, 0), _pTable, variablePool, currentScope+f".{_name}")
+
+        elif keyword == "return":
+            if not inFunction: print("SyntaxError: 'return' outside function"); exit(1)
+            elseJudgement = False
+            if code[index] == ' ': index += 1 # Delete the blank
+            _element, _stringMode = '', False
+            while index < len(code): 
+                if code[index] == '"' or code[index] == '\'': 
+                    if not _stringMode: _stringMode = code[index]
+                    elif _stringMode == code[index]: _stringMode = False
+                if not _stringMode and code[index] == ';': break
+                _element += code[index]
+                index += 1
+            else: print("SyntaxError: invalid syntax"); exit(1)
+            index += 1
+
+            result = singleCommandParsing(_element, variablePool, currentScope); break
+
+    return result, elseJudgement, inLoop, outOfLoop
