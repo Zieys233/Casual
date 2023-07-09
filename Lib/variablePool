@@ -3,6 +3,15 @@
         "type": null,
         "internal": null,
         "variablePool": {
+            "input": {
+                "type": "function",
+                "internal": null,
+                "variablePool": {
+                    "__returnValueType": "str",
+                    "__parameterList": [],
+                    "__code": ""
+                }
+            },
             "print": {
                 "type": "function",
                 "internal": null,

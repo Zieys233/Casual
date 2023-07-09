@@ -2,6 +2,7 @@ import runtime
 
 
 def init(initalVariablePool:dict):
+    initalVariablePool["<runtime>"]["variablePool"]["input"]["internal"] = builtinInput
     initalVariablePool["<runtime>"]["variablePool"]["print"]["internal"] = builtinPrint
     initalVariablePool["<runtime>"]["variablePool"]["str_to_int"]["internal"] = builtinInt
     initalVariablePool["<runtime>"]["variablePool"]["float_to_int"]["internal"] = builtinInt
@@ -11,6 +12,11 @@ def init(initalVariablePool:dict):
     initalVariablePool["<runtime>"]["variablePool"]["strlen"]["internal"] = strlen
     initalVariablePool["<runtime>"]["variablePool"]["chr"]["internal"] = numToChar
     initalVariablePool["<runtime>"]["variablePool"]["ord"]["internal"] = getUnicode
+
+def builtinInput(variablePool:dict, currentScope:str) -> int:
+    try: content = input()
+    except EOFError: return ''
+    return content
 
 def builtinPrint(variablePool:dict, currentScope:str) -> int:
     content = runtime.getValue(variablePool, currentScope, "content")[0]['variablePool']['__value']
