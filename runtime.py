@@ -171,9 +171,10 @@ def assignmentSentence(code:str, stringCodeTable:dict, variablePool:dict, curren
         typeName, index = typeName[0:typeName.find('[')], singleCommandParsing(stringCodeRestoration(typeName[typeName.find('[')+1:-1], stringCodeTable), variablePool, currentScope)
         if not type(index) == int: print("TypeError: the type of index value must be 'int'")
         if not type(_value).__name__ == "NoneType":
-            if type(_value[0]).__name__ != typeName and not (type(_value[0]).__name__ == "int" and typeName == "float"):
-                print("TypeError: Cannot assign values to variables of different types."); exit(1)
             if len(_value) > index: print("IndexError: The actual element quality cannot exceed the array index"); exit(1)
+            if not len(_value) == 0:
+                if type(_value[0]).__name__ != typeName and not (type(_value[0]).__name__ == "int" and typeName == "float"):
+                    print("TypeError: Cannot assign values to variables of different types."); exit(1)
         createVariable(variablePool, currentScope, variableName, typeName+f"[{index}]", None)["variablePool"]["__value"] = _value
     elif typeName == type(_value).__name__ or type(_value).__name__=="NoneType" or \
         (typeName == "float" and type(_value).__name__ == "int"):
@@ -385,7 +386,7 @@ def singleCommandParsing(code:str, variablePool:dict, currentScope:str):
         for _i in range(1, len(mainCode)-1): 
             if mainCode[_i] == ',': elementArray.append(_tmp); _tmp = ''; continue
             _tmp += mainCode[_i]
-        elementArray.append(_tmp)
+        if _tmp != '': elementArray.append(_tmp)
 
         elementType = "NoneType"; _tmp = []
         for _i in elementArray: 
@@ -606,7 +607,7 @@ def run(code:str, inFunction:bool, inLoop:bool, variablePool:dict, currentScope:
                 index += 1
             else: print("SyntaxError: invalid syntax"); exit(1)
             index += 1
-            print(f"import-_element: `{_element}` `{currentRuntimePath}` `{currentLibraryPath}`")
+            
             from os import listdir
             for _f in listdir(currentLibraryPath):
                 if _f == f"{_element}.cl":  
