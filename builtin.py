@@ -48,10 +48,11 @@ def numToChar(variablePool:dict, currentScope:str):
     num = runtime.getValue(variablePool, currentScope, "num")[0]["variablePool"]["__value"]
     if num == None: print("TypeError: Cannot pass in null type"); exit(1)
     if 0 <= num <= 1114111: return chr(num)
-    else: print("ValueError: Unable to convert to character")
+    else: print("ValueError: Unable to convert to character"); exit(1)
 
 def getUnicode(variablePool:dict, currentScope:str):
     char = runtime.getValue(variablePool, currentScope, "char")[0]["variablePool"]["__value"]
     if char == None: print("TypeError: Cannot pass in null type"); exit(1)
+    if len(char) != 1: print("ValueError: the parameter of `ord()` must have one and only one character"); exit(1)
     if 0 <= char <= 1114111: return ord(char)
-    else: print("ValueError: Unable to get the code point")
+    else: print("ValueError: Unable to get the code point"); exit(1)

@@ -134,10 +134,11 @@ def assignmentSentence(code:str, stringCodeTable:dict, variablePool:dict, curren
     except ValueError:
         if '[' in _element and _element[-1] == ']':
             _variable = getValue(variablePool, currentScope, _element[0:_element.find('[')])[0]
+            if not _variable: print(f"NameError: name '{_element[0:_element.find('[')]}' is not defined"); exit(1)
+
             _type = _variable['type']
             try: _typeName, _capacity = _type[0:_type.find('[')], int(_type[_type.find('[')+1:-1])
             except: print(f"SyntaxError: invalid array operation."); exit(1)
-            if not _variable: print(f"NameError: name '{_element[0:_element.find('[')]}' is not defined"); exit(1)
             _index = singleCommandParsing(stringCodeRestoration(_element[_element.find('[')+1:-1], stringCodeTable), variablePool, currentScope)
             if not type(_index) == int: print("TypeError: the type of index value must be 'int'")
 
@@ -147,10 +148,16 @@ def assignmentSentence(code:str, stringCodeTable:dict, variablePool:dict, curren
             _length = len(_variable["variablePool"]["__value"])
             if _capacity > _index >= _length-1:
                 for _i in range(_index-_length+1): _variable["variablePool"]["__value"].append(None)
-                _variable["variablePool"]["__value"][_index] = _value
+                if _operationSymbol == '': _variable["variablePool"]["__value"][_index] = _value
+                else:
+                    _value = singleCommandParsing(f"{_element}{_operationSymbol}{_value}", variablePool, currentScope)
+                    _variable["variablePool"]["__value"][_index] = _value
                 return _value
             elif _index < _length-1:
-                _variable["variablePool"]["__value"][_index] = _value
+                if _operationSymbol == '': _variable["variablePool"]["__value"][_index] = _value
+                else:
+                    _value = singleCommandParsing(f"{_element}{_operationSymbol}{_value}", variablePool, currentScope)
+                    _variable["variablePool"]["__value"][_index] = _value
                 return _value
             else: print(f"SyntaxError: invalid array operation."); exit(1)
         variableValue = getValue(variablePool, currentScope, stringCodeRestoration(_element, stringCodeTable))[0]
@@ -288,6 +295,9 @@ def operationSentence(code:str, stringCodeTable:dict, variablePool:dict, current
             if elementArray[_i] == '' and elementArray[_i+1] == '-':
                 _tmp.append(elementArray[_i+1]+elementArray[_i+2])
                 _i += 3; continue
+            elif elementArray[_i] == '' and elementArray[_i+1] == '!':
+                _tmp.append(elementArray[_i+1])
+                _i += 2; continue
             _tmp.append(elementArray[_i])
             _i += 1
         if '' in _tmp: print("SyntaxError: invalid syntax"); exit(1)
@@ -295,22 +305,23 @@ def operationSentence(code:str, stringCodeTable:dict, variablePool:dict, current
 
     # Perform arithmetic operations
     elementParsing = lambda element: singleCommandParsing(element, variablePool, currentScope)
-
     symbolArray = ["||", "&&", "==", ">=", "<=", '>', '<', '+', '-', '*', '/', '%']
     if elementArray[0] in symbolArray: print("SyntaxError: invalid syntax"); exit(1)
     elif elementArray[0] == '!':
         if elementArray[0] in symbolArray: print("SyntaxError: invalid syntax"); exit(1)
+        _value = None
     else:
         _value = elementParsing(elementArray[0])
+    symbolArray.append('!')
     for _i in range(len(elementArray)):
         if elementArray[_i] in symbolArray:
             try:
                 if elementArray[_i+1] in symbolArray: print("SyntaxError: invalid syntax"); exit(1)
 
                 _anotherValue = elementParsing(elementArray[_i+1])
-                if elementArray[_i] == "||": _value = _value or _anotherValue
-                elif elementArray[_i] == "&&": _value = _value and _anotherValue
-                elif elementArray[_i] == '!': _value = not _anotherValue
+                if elementArray[_i] == "||": _value = int(_value or _anotherValue)
+                elif elementArray[_i] == "&&": _value = int(_value and _anotherValue)
+                elif elementArray[_i] == '!': _value = int(not _anotherValue)
                 elif elementArray[_i] == "==": _value = int(_value == _anotherValue)
                 elif elementArray[_i] == ">=": _value = int(_value >= _anotherValue)
                 elif elementArray[_i] == "<=": _value = int(_value <= _anotherValue)
@@ -323,6 +334,7 @@ def operationSentence(code:str, stringCodeTable:dict, variablePool:dict, current
                 elif elementArray[_i] == '%': _value = _value % _anotherValue
             except IndexError: print("SyntaxError: invalid syntax"); exit(1)
             except TypeError: 
+                print(element, elementArray, _value)
                 print("TypeError: Different types of values cannot be operated on directly")
                 if type(_value).__name__ == "NoneType" or type(_anotherValue).__name__ == "NoneType":
                     print(" └─ Warning: type `null` cannot be operated on with any type", f"`{_value}`", f"`{_anotherValue}`")
@@ -423,7 +435,10 @@ def obtainCodeBlock(code:str, index:int, symbol:tuple) -> tuple:
     # for example, code blocks enclosed in parentheses or braces and single line commands
 
     # Delete the bloank
-    while code[index] == ' ': index += 1
+    # print(code, index)
+    try:
+        if code[index] == ' ': index += 1
+    except IndexError: print("SyntaxError: incomplete input"); exit(1)
     # Obrain code block
     if not len(symbol) == 0:
         if not code[index] == symbol[0]: print("SyntaxError: invalid syntax"); exit(1)
