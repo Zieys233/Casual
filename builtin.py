@@ -47,9 +47,11 @@ def strlen(variablePool:dict, currentScope:str):
 def numToChar(variablePool:dict, currentScope:str):
     num = runtime.getValue(variablePool, currentScope, "num")[0]["variablePool"]["__value"]
     if num == None: print("TypeError: Cannot pass in null type"); exit(1)
-    return chr(num)
+    if 0 <= num <= 1114111: return chr(num)
+    else: print("ValueError: Unable to convert to character")
 
 def getUnicode(variablePool:dict, currentScope:str):
     char = runtime.getValue(variablePool, currentScope, "char")[0]["variablePool"]["__value"]
     if char == None: print("TypeError: Cannot pass in null type"); exit(1)
-    return ord(char)
+    if 0 <= char <= 1114111: return ord(char)
+    else: print("ValueError: Unable to get the code point")
