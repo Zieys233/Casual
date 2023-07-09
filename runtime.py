@@ -6,6 +6,18 @@ from copy import deepcopy
 
 invalidSymbol = [c for _i in range(maxunicode+1) if category(c:=chr(_i)).startswith('P')]; invalidSymbol.remove('_')
 
+currentLibraryPath = None
+currentRuntimePath = None
+
+def getSourceCode(path):
+    try:
+        with open(path, 'r') as f:
+            sourceCode = deleteBlankPart(f.read(), 1)
+            return sourceCode
+    except OSError: print(f"OSError: Can not find '{path}' file"); exit(1)
+    except FileNotFoundError: print("OSError: Can not find the source file"); exit(1)
+    except IndexError: print("OSError: Missing source file"); exit(1)
+
 def deleteBlankPart(code:str, remainingBlankCount:int):
     _tmp, stringMode, annotationMode, i = '', False, 0, 0
     while i < len(code):
@@ -34,6 +46,7 @@ def deleteBlankPart(code:str, remainingBlankCount:int):
     if stringMode: print("SyntaxError: incomplete input of string"); exit(1)
 
     return _tmp
+
 
 def tupleParsing(parameterCode:str) -> list:
     # Handling an array of function parameters
@@ -80,6 +93,7 @@ def getStringCode(code:str) -> tuple:
 
     return mainCode, stringCodeTable
 
+
 def createVariable(variablePool:dict, currentScope:str, variableName:str, variableType:str, internal) -> list:
     currentScopeArray = currentScope.split('.')
     accessWidth = len(currentScopeArray)
@@ -106,6 +120,7 @@ def getValue(variablePool:dict, currentScope:str, variableName:str):
         variableScopeArray = []
     
     return None, currentScope
+
 
 def assignmentSentence(code:str, stringCodeTable:dict, variablePool:dict, currentScope:str):
     _value = singleCommandParsing(stringCodeRestoration(code[code.find('=')+1:len(code)], stringCodeTable), variablePool, currentScope)
@@ -385,6 +400,7 @@ def singleCommandParsing(code:str, variablePool:dict, currentScope:str):
         else: return float(code)
     except ValueError: print(f"NameError: name '{code}' is not defined3"); exit(1)
 
+
 def keywordComparison(code:str, index:int, keyword:str) -> int:
     if code[index] == ' ': 
         while True:
@@ -451,7 +467,7 @@ def obtainCodeBlock(code:str, index:int, symbol:tuple) -> tuple:
     return codeBlock, index
 
 def run(code:str, inFunction:bool, inLoop:bool, variablePool:dict, currentScope:str):
-    keywordArray = ["if", "else", "while", "break", "continue", "function", "return"]
+    keywordArray = ["if", "else", "while", "break", "continue", "function", "return", "import"]
 
     index, result, elseJudgement, outOfLoop = 0, None, False, 0
     
@@ -576,5 +592,26 @@ def run(code:str, inFunction:bool, inLoop:bool, variablePool:dict, currentScope:
             index += 1
 
             result = singleCommandParsing(_element, variablePool, currentScope); break
+        
+        elif keyword == "import":
+            elseJudgement = False
+            if code[index] == ' ': index += 1 # Delete the blank
+            _element, _stringMode = '', False
+            while index < len(code): 
+                if code[index] == '"' or code[index] == '\'': 
+                    if not _stringMode: _stringMode = code[index]
+                    elif _stringMode == code[index]: _stringMode = False
+                if not _stringMode and code[index] == ';': break
+                _element += code[index]
+                index += 1
+            else: print("SyntaxError: invalid syntax"); exit(1)
+            index += 1
+            print(f"import-_element: `{_element}` `{currentRuntimePath}` `{currentLibraryPath}`")
+            from os import listdir
+            for _f in listdir(currentLibraryPath):
+                if _f == f"{_element}.cl":  
+                    run(getSourceCode(currentLibraryPath+f"{_element}.cl"), False, False, variablePool, "<runtime>")
+                    break
+            else: run(getSourceCode(currentRuntimePath+f"{_element}.cl"), False, False, variablePool, "<runtime>")
 
     return result, elseJudgement, inLoop, outOfLoop

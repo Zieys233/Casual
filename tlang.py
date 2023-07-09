@@ -16,6 +16,7 @@ def main(argv:list):
         if '\\' in argv[0]: path = '/'.join(argv[0].split('\\')[:-1])
         elif '/' in argv: path = '/'.join(argv[0].split('/')[:-1])
         else: path = './'
+        print(path, argv)
 
         with open(path+"/Lib/variablePool") as f:
             initalVariablePool = loads(f.read())
@@ -24,16 +25,16 @@ def main(argv:list):
     except JSONDecodeError: print("OSError: Fatal syntax in original variable pool file"); exit(1)
     
     # Read the source code and run it
-    from runtime import run, deleteBlankPart
+    import runtime
 
-    try:
-        with open(argv[1], 'r') as f:
-            sourceCode = deleteBlankPart(f.read(), 1)
-            try:
-                run(sourceCode, False, False, initalVariablePool, "<runtime>")
-            except KeyboardInterrupt: ...
-    except FileNotFoundError: print("OSError: Can not find the source file"); exit(1)
-    except IndexError: print("OSError: Missing source file"); exit(1)
+    if '\\' in argv[0]: runtime.currentRuntimePath = '/'.join(argv[1].split('\\')[:-1])
+    elif '/' in argv: runtime.currentRuntimePath = '/'.join(argv[1].split('/')[:-1])
+    runtime.currentRuntimePath += '/'
+    runtime.currentLibraryPath = path+"/Lib/"
+    print(runtime.currentRuntimePath, runtime.currentLibraryPath)
+
+    try: runtime.run(runtime.getSourceCode(argv[1]), False, False, initalVariablePool, "<runtime>")
+    except KeyboardInterrupt: ...
 
 if __name__ == "__main__":
     main(argv)
