@@ -110,10 +110,13 @@ def getValue(variablePool:dict, currentScope:str, variableName:str):
 def assignmentSentence(code:str, stringCodeTable:dict, variablePool:dict, currentScope:str):
     _value = singleCommandParsing(stringCodeRestoration(code[code.find('=')+1:len(code)], stringCodeTable), variablePool, currentScope)
     _element = code[0:code.find('=')]
+    _operationSymbol = ''
+    if code[code.find('=')-1] in ['+', '-', '*', '/', '%']: 
+        _element = code[0:code.find('=')-1]; _operationSymbol = code[code.find('=')-1]
 
     try:
         typeName, variableName = _element.split("::")
-    except ValueError: 
+    except ValueError:
         if '[' in _element and _element[-1] == ']':
             _variable = getValue(variablePool, currentScope, _element[0:_element.find('[')])[0]
             _type = _variable['type']
@@ -137,7 +140,11 @@ def assignmentSentence(code:str, stringCodeTable:dict, variablePool:dict, curren
             else: print(f"SyntaxError: invalid array operation."); exit(1)
         variableValue = getValue(variablePool, currentScope, stringCodeRestoration(_element, stringCodeTable))[0]
         if not variableValue: print("SyntaxError: Type definition required"); exit(1)
-        variableValue["variablePool"]["__value"] = _value
+        if _operationSymbol == '': variableValue["variablePool"]["__value"] = _value
+        else:
+            _value = singleCommandParsing(f"{_element}{_operationSymbol}{_value}", variablePool, currentScope)
+            variableValue["variablePool"]["__value"] = _value
+
         return _value
 
     # Invalid symbol or invalid variable name
@@ -155,7 +162,10 @@ def assignmentSentence(code:str, stringCodeTable:dict, variablePool:dict, curren
         createVariable(variablePool, currentScope, variableName, typeName+f"[{index}]", None)["variablePool"]["__value"] = _value
     elif typeName == type(_value).__name__ or type(_value).__name__=="NoneType" or \
         (typeName == "float" and type(_value).__name__ == "int"):
-        createVariable(variablePool, currentScope, variableName, typeName, None)["variablePool"]["__value"] = _value
+        if _operationSymbol == '': 
+            createVariable(variablePool, currentScope, variableName, typeName, None)["variablePool"]["__value"] = _value
+        else:
+            singleCommandParsing(f"{variableName}={variableName}{_operationSymbol}{_value}", variablePool, currentScope)
     else:
         print("TypeError: Cannot assign values to variables of different types"); exit(1)
 
@@ -187,7 +197,7 @@ def functionCall(code:str, stringCodeTable:dict, variablePool:dict, currentScope
         _valueType = type(_valueArray[_i]).__name__
         _parameterType = functionInformation["variablePool"][functionParameterArray[_i]]["type"]
         if not (_valueType == _parameterType or _valueType == "NoneType" or (_valueType == "int" and _parameterType == "float")):
-            print("TypeError: The formal and actual parameter types must be consistent", f"`{_valueType}`", f"`{_parameterType}`"); exit(1)
+            print("TypeError: The formal and actual parameter types must be consistent"); exit(1)
         functionInformation["variablePool"][functionParameterArray[_i]]["variablePool"]["__value"] = _valueArray[_i]
     
     if functionInformation["internal"]:
@@ -310,7 +320,7 @@ def singleCommandParsing(code:str, variablePool:dict, currentScope:str):
     mainCode, stringCodeTable = getStringCode(code)
 
     # assignment
-    if '=' in mainCode and mainCode[mainCode.find('=')+1] != '=' and mainCode[mainCode.find('=')-1] not in ['>', '<']: 
+    if '=' in mainCode and mainCode[mainCode.find('=')+1] != '=' and mainCode[mainCode.find('=')-1] not in ['>', '<']:
         return assignmentSentence(mainCode, stringCodeTable, variablePool, currentScope)
     
     # function call
