@@ -98,6 +98,54 @@
                     },
                     "__code": ""
                 }
+            },
+            "strlen": {
+                "type": "function",
+                "internal": null,
+                "variablePool": {
+                    "__returnValueType": "int",
+                    "__parameterList": ["content"],
+                    "content": {
+                        "type": "str",
+                        "internal": null,
+                        "variablePool": {
+                            "__value": null
+                        }
+                    },
+                    "__code": ""
+                }
+            },
+            "chr": {
+                "type": "function",
+                "internal": null,
+                "variablePool": {
+                    "__returnValueType": "str",
+                    "__parameterList": ["num"],
+                    "num": {
+                        "type": "int",
+                        "internal": null,
+                        "variablePool": {
+                            "__value": null
+                        }
+                    },
+                    "__code": ""
+                }
+            },
+            "ord": {
+                "type": "function",
+                "internal": null,
+                "variablePool": {
+                    "__returnValueType": "int",
+                    "__parameterList": ["char"],
+                    "char": {
+                        "type": "str",
+                        "internal": null,
+                        "variablePool": {
+                            "__value": null
+                        }
+                    },
+                    "__code": ""
+                }
             }
         }
     }

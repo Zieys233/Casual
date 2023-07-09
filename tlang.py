@@ -19,9 +19,7 @@ def main(argv:list):
 
         with open(path+"/Lib/variablePool") as f:
             initalVariablePool = loads(f.read())
-            # print(initalVariablePool)
             builtin.init(initalVariablePool)
-            # print(initalVariablePool)
     except FileNotFoundError: print("OSError: Missing orginal varibale pool file"); exit(1)
     except JSONDecodeError: print("OSError: Fatal syntax in original variable pool file"); exit(1)
     
@@ -31,12 +29,11 @@ def main(argv:list):
     try:
         with open(argv[1], 'r') as f:
             sourceCode = deleteBlankPart(f.read(), 1)
-            # print(f"======code======\n{sourceCode}\n===============")
             try:
                 run(sourceCode, False, False, initalVariablePool, "<runtime>")
             except KeyboardInterrupt: ...
     except FileNotFoundError: print("OSError: Can not find the source file"); exit(1)
-    # except IndexError: print("OSError: Missing source file"); exit(1)
+    except IndexError: print("OSError: Missing source file"); exit(1)
 
 if __name__ == "__main__":
     main(argv)
