@@ -25,9 +25,11 @@ def main(argv:list):
     
     # Read the source code and run it
     import runtime
-
-    if '\\' in argv[0]: runtime.currentRuntimePath = '/'.join(argv[1].split('\\')[:-1])
-    elif '/' in argv[0]: runtime.currentRuntimePath = '/'.join(argv[1].split('/')[:-1])
+    
+    try:
+        if '\\' in argv[0]: runtime.currentRuntimePath = '/'.join(argv[1].split('\\')[:-1])
+        elif '/' in argv[0]: runtime.currentRuntimePath = '/'.join(argv[1].split('/')[:-1])
+    except IndexError: print("OSError: must have one parameter"); exit(1)
     runtime.currentRuntimePath += '/'
     runtime.currentLibraryPath = path+"/Lib/"
 
