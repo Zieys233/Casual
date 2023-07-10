@@ -6,8 +6,8 @@ from copy import deepcopy
 
 invalidSymbol = [c for _i in range(maxunicode+1) if category(c:=chr(_i)).startswith('P')]; invalidSymbol.remove('_')
 
-currentLibraryPath = None
-currentRuntimePath = None
+currentLibraryPath = ''
+currentRuntimePath = ''
 
 def getSourceCode(path):
     try:

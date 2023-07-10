@@ -14,7 +14,7 @@ def main(argv:list):
 
     try:
         if '\\' in argv[0]: path = '/'.join(argv[0].split('\\')[:-1])
-        elif '/' in argv: path = '/'.join(argv[0].split('/')[:-1])
+        elif '/' in argv[0]: path = '/'.join(argv[0].split('/')[:-1])
         else: path = './'
 
         with open(path+"/Lib/variablePool") as f:
@@ -27,7 +27,7 @@ def main(argv:list):
     import runtime
 
     if '\\' in argv[0]: runtime.currentRuntimePath = '/'.join(argv[1].split('\\')[:-1])
-    elif '/' in argv: runtime.currentRuntimePath = '/'.join(argv[1].split('/')[:-1])
+    elif '/' in argv[0]: runtime.currentRuntimePath = '/'.join(argv[1].split('/')[:-1])
     runtime.currentRuntimePath += '/'
     runtime.currentLibraryPath = path+"/Lib/"
 
