@@ -8,6 +8,8 @@
 from sys import argv, exit
 
 def main(argv:list):
+    if len(argv) != 2: print("OSError: must have one parameter"); exit(1)
+
     # Read variablePool file
     from json import loads, JSONDecodeError
     import builtin
@@ -26,10 +28,8 @@ def main(argv:list):
     # Read the source code and run it
     import runtime
     
-    try:
-        if '\\' in argv[0]: runtime.currentRuntimePath = '/'.join(argv[1].split('\\')[:-1])
-        elif '/' in argv[0]: runtime.currentRuntimePath = '/'.join(argv[1].split('/')[:-1])
-    except IndexError: print("OSError: must have one parameter"); exit(1)
+    if '\\' in argv[0]: runtime.currentRuntimePath = '/'.join(argv[1].split('\\')[:-1])
+    elif '/' in argv[0]: runtime.currentRuntimePath = '/'.join(argv[1].split('/')[:-1])
     runtime.currentRuntimePath += '/'
     runtime.currentLibraryPath = path+"/Lib/"
 
