@@ -160,6 +160,7 @@ def assignmentSentence(code:str, stringCodeTable:dict, variablePool:dict, curren
                     _variable["variablePool"]["__value"][_index] = _value
                 return _value
             else: print(f"SyntaxError: invalid array operation."); exit(1)
+        
         variableValue = getValue(variablePool, currentScope, stringCodeRestoration(_element, stringCodeTable))[0]
         if not variableValue: print("SyntaxError: Type definition required"); exit(1)
         if _operationSymbol == '': variableValue["variablePool"]["__value"] = _value
@@ -205,7 +206,9 @@ def functionCall(code:str, stringCodeTable:dict, variablePool:dict, currentScope
     originFunctionVariablePool = deepcopy(functionInformation["variablePool"])
 
     parameterCode = stringCodeRestoration(code[code.find('(')+1:-1], stringCodeTable)
+    # print(code, stringCodeTable)
     elementArray = tupleParsing(parameterCode)
+    # print(elementArray)
 
     _valueArray = []
     for _i in elementArray: _valueArray.append(singleCommandParsing(_i, variablePool, currentScope))   
@@ -219,8 +222,18 @@ def functionCall(code:str, stringCodeTable:dict, variablePool:dict, currentScope
     for _i in range(len(_valueArray)):
         _valueType = type(_valueArray[_i]).__name__
         _parameterType = functionInformation["variablePool"][functionParameterArray[_i]]["type"]
-        if not (_valueType == _parameterType or _valueType == "NoneType" or (_valueType == "int" and _parameterType == "float")):
-            print("TypeError: The formal and actual parameter types must be consistent"); exit(1)
+        
+        if not ((_parameterType ==_valueType and '[' not in _parameterType) and _valueType == "NoneType" and \
+                (_parameterType == "float" and _valueType == "int")):
+            if '[' in _parameterType and ']' in _parameterType[-1]:
+                _typeName = _parameterType[0:_parameterType.find('[')]
+                if type(_valueArray[_i][0]).__name__ != _typeName and not (type(_valueArray[_i][0]).__name__ == "int" and _typeName == "float"):
+                    print("TypeError: The return value defined by the function does not match the actual return value"); exit(1)
+                try: _length = int(_parameterType[_parameterType.find('[')+1:-1])
+                except: print(f"SyntaxError: invalid array operation."); exit(1)
+                if not _length <= len(_valueArray[_i]): print(f"SyntaxError: invalid array operation."); exit(1)
+        else: print("TypeError: The formal and actual parameter types must be consistent", _parameterType, _valueType); exit(1)
+
         functionInformation["variablePool"][functionParameterArray[_i]]["variablePool"]["__value"] = _valueArray[_i]
     
     if functionInformation["internal"]:
@@ -228,7 +241,8 @@ def functionCall(code:str, stringCodeTable:dict, variablePool:dict, currentScope
             _value = functionInformation["internal"](variablePool, functionScope+f".{functionName}")
         except: print("RuntimeError: faulty internal function functionality"); exit(1)
     else:
-        _value = run(functionInformation["variablePool"]["__code"], True, False, variablePool, functionScope+f".{functionName}")[0]
+        try: _value = run(functionInformation["variablePool"]["__code"], True, False, variablePool, functionScope+f".{functionName}")[0]
+        except RecursionError: print("RuntimeError: Exceeding maximum recursion depth: 1024"); exit(1)
     functionInformation["variablePool"] = originFunctionVariablePool
 
     if (returnValueType == type(_value).__name__ and '[' not in returnValueType) or type(_value).__name__ == "NoneType" or \
@@ -249,6 +263,7 @@ def operationSentence(code:str, stringCodeTable:dict, variablePool:dict, current
     # Different groups represent different priorities
     # The higher the priority of the group, the higher the priority
     symbolArray = [["||", "&&", '!'], ["==", ">=", "<=", '>', '<'], ['+', '-', '*', '/', '%']]
+
     # Divide the sentence into multiple blocks based on symbols
     if code[0] == '(' and code[-1] == ')': code = code[1:-1]
 
@@ -346,13 +361,16 @@ def singleCommandParsing(code:str, variablePool:dict, currentScope:str):
     symbolTable = ['=', '>', '<', '!', '(', '+', '-', '*', '/', '%', '|', '&']
     
     mainCode, stringCodeTable = getStringCode(code)
+    print("single:", mainCode)
 
     # assignment
     if '=' in mainCode and mainCode[mainCode.find('=')+1] != '=' and mainCode[mainCode.find('=')-1] not in ['>', '<']:
+        print("maincode:", mainCode)
         return assignmentSentence(mainCode, stringCodeTable, variablePool, currentScope)
     
     # function call
     if mainCode[0] != '(' and '(' in mainCode and mainCode[-1] == ')':
+        print("fucntion-calll")
         for _i in symbolTable:
             if _i in mainCode[0:mainCode.find('(')]: break
         else:
@@ -360,6 +378,7 @@ def singleCommandParsing(code:str, variablePool:dict, currentScope:str):
     
     # array operation
     if mainCode[0] != '[' and '[' in mainCode and mainCode[-1] == ']':
+        print("array-operation", symbolTable, mainCode[0:mainCode.find('[')])
         for _i in symbolTable:
             if _i in mainCode[0:mainCode.find('[')]: break
         else:
@@ -371,6 +390,7 @@ def singleCommandParsing(code:str, variablePool:dict, currentScope:str):
                 _value = _variable["variablePool"]["__value"]
                 return _variable["variablePool"]["__value"][_index]
             except: print(f"SyntaxError: invalid array operation."); exit(1)
+        print("break")
 
     # judgment (operation)
     for _i in symbolTable: 
@@ -382,6 +402,7 @@ def singleCommandParsing(code:str, variablePool:dict, currentScope:str):
                     if int(_tmp) == float(_tmp): return int(_tmp)
                     return float(_tmp)
                 except: ...
+            print("judgment-mainCode:", mainCode)
             return operationSentence(mainCode, stringCodeTable, variablePool, currentScope)
 
     # Obtain value normally, whether it is in variable pool
@@ -409,9 +430,9 @@ def singleCommandParsing(code:str, variablePool:dict, currentScope:str):
 
         return _tmp
     try:
-        if float(code) == int(float(code)): return int(code)
+        if float(code) == int(float(code)): return int(float(code))
         else: return float(code)
-    except ValueError: print(f"NameError: name '{code}' is not defined3"); exit(1)
+    except ValueError: print(f"NameError: name '{code}' is not defined"); exit(1)
 
 
 def keywordComparison(code:str, index:int, keyword:str) -> int:

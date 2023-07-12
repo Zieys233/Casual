@@ -5,7 +5,7 @@
 # Improved version for Tranquillity lang
 
 
-from sys import argv, exit
+from sys import argv, exit, setrecursionlimit
 
 def main(argv:list):
     if len(argv) != 2: print("OSError: must have one parameter"); exit(1)
@@ -33,6 +33,7 @@ def main(argv:list):
     runtime.currentRuntimePath += '/'
     runtime.currentLibraryPath = path+"/Lib/"
 
+    setrecursionlimit(1024)
     try: runtime.run(runtime.getSourceCode(argv[1]), False, False, initalVariablePool, "<runtime>")
     except KeyboardInterrupt: ...
 
